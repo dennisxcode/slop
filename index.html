@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Final Form</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Screen 1: record every word -->
+  <section id="record" class="screen active">
+    <header>
+      <h1>Will it merge into its <span>Final Form</span>?</h1>
+      <p>First, record your voice for every merge. Bigger forms play your words slower.</p>
+    </header>
+    <div class="progress"><div id="bar"></div></div>
+    <p id="count"></p>
+    <ol id="words"></ol>
+    <p id="msg" role="status"></p>
+    <div class="actions">
+      <button id="wipe" class="ghost">Start over</button>
+      <button id="go" disabled>Let's merge →</button>
+    </div>
+    <p class="hint">● record (tap again to stop) · ▶ listen · ⇪ upload a file instead</p>
+  </section>
+
+  <!-- Screen 2: the game -->
+  <section id="play" class="screen">
+    <canvas id="game"></canvas>
+    <div class="top">Best: <b id="best">1/8</b></div>
+    <div id="banner">FINAL FORM!</div>
+    <nav class="hud">
+      <button id="auto" class="on">Auto-drop: on</button>
+      <button id="speed">1×</button>
+      <button id="reset">Reset</button>
+      <button id="back">🎙 Re-record</button>
+    </nav>
+  </section>
+
+  <script src="js/vendor/matter.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/recorder.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
