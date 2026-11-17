@@ -305,9 +305,42 @@ window.Game = (() => {
     return 0.25 * Math.max(0, 1 - ff.t / 0.6);
   }
 
+  // Keeps the flask lively so the pile doesn't lock up with same-tier pairs a
+  // potato apart (the forces reset after every Engine.update):
+  //   Same-tier pull: two potatoes of the same tier within 3× their combined
+  //     radius pull toward each other, up to `attract` × gravity, fading with distance.
+  //   Jiggle: a potato that has come to rest gets an occasional small random hop.
+  function liven() {
+    if (ff && ff.phase !== "charge") return;
+    const s = S(), g = engine.gravity.y * engine.gravity.scale;
+    const byTier = new Map();
+    for (const b of pieces()) {
+      if (b.frozen || b.merged) continue;
+      if (!byTier.has(b.tier)) byTier.set(b.tier, []);
+      byTier.get(b.tier).push(b);
+      if (s.jiggle > 0 && b.speed < 0.6 && t - b.born > 0.5 && Math.random() < 0.012) {
+        const k = s.jiggle * 2.2;
+        Body.setVelocity(b, { x: b.velocity.x + (Math.random() * 2 - 1) * k, y: b.velocity.y - Math.random() * k });
+      }
+    }
+    if (s.attract <= 0) return;
+    for (const group of byTier.values()) {
+      for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+        const a = group[i], b = group[j];
+        const dx = b.position.x - a.position.x, dy = b.position.y - a.position.y, d = Math.hypot(dx, dy) || 1;
+        const range = (a.r + b.r) * 3;
+        if (d > range) continue;
+        const f = s.attract * g * (1 - d / range) * 0.5 + s.attract * g * 0.5;   // stronger when close, never zero in range
+        const fx = dx / d * f, fy = dy / d * f;
+        Body.applyForce(a, a.position, { x: fx * a.mass, y: fy * a.mass });
+        Body.applyForce(b, b.position, { x: -fx * b.mass, y: -fy * b.mass });
+      }
+    }
+  }
+
   function step(dt) {
     const steps = Math.ceil(dt * 1000 / 16.667);   // Matter is happiest at ≤ 60 Hz steps
-    for (let k = 0; k < steps; k++) { Engine.update(engine, dt * 1000 / steps); resolveMerges(); }
+    for (let k = 0; k < steps; k++) { liven(); Engine.update(engine, dt * 1000 / steps); resolveMerges(); }
   }
 
   function frame(now) {

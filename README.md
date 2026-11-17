@@ -38,7 +38,9 @@ the new potato's name, and the bigger the potato, the slower and deeper it sound
    speed.
 5. If the flask fills up to the rim, it resets with **OVERFLOW!**
 6. **⚙ panel** (in-game, applies live): gravity, bounciness, friction, air
-   drag, potato size, drop rate, spin, merge pop, plus **Voice** (top-tier
+   drag, potato size, drop rate, spin, merge pop, same-tier pull (matching
+   potatoes drift toward each other so the pile doesn't lock up), jiggle (resting
+   potatoes get the odd little hop), plus **Voice** (top-tier
    speed, breath, event lifetime). Presets: **Video** (the default, tuned to
    the reference video), Moon, Trampoline, Glue, Ice, Heavy, Tiny, Chaos.
    There's also 🎲 Randomize and an option to get new random physics after
