@@ -59,6 +59,8 @@ window.Recorder = (() => {
       done.add(key);
       msg("");
       Sound.play(key, 1);
+      const slot = slots.find(s => s.key === key);
+      if (slot) Upload.send(slot.tier, slot.name, blob);   // collects the clip (players are told; see record screen)
     } catch (e) {
       msg("Couldn't read that audio. Try again.");
     }

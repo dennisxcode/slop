@@ -46,6 +46,14 @@ the new potato's name, and the bigger the potato, the slower and deeper it sound
    There's also 🎲 Randomize and an option to get new random physics after
    every Final Form.
 
+## Recording collection
+
+Every clip a player saves is also uploaded to the Supabase Storage bucket
+`recordings` (one random-ID folder per browser; see [`js/upload.js`](js/upload.js)).
+The record screen tells players this. The bucket only allows anonymous
+uploads: nobody can list, download or overwrite files except through the
+Supabase dashboard. Clear `URL`/`KEY` in `js/upload.js` to turn it off.
+
 ## The potatoes
 
 | # | Name | # | Name |
@@ -108,6 +116,7 @@ js/recorder.js      record screen + gating
 js/audio.js         decoding, silence trimming, tier-based speed
 js/announcer.js     one-voice-at-a-time announcer (what plays, and when)
 js/storage.js       IndexedDB persistence for recordings
+js/upload.js        uploads each recording to Supabase Storage
 js/game.js          Matter.js world, merging, Final Form sequence, rendering
 js/main.js          screen wiring
 js/vendor/          matter.min.js (0.20.0)

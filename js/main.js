@@ -5,6 +5,7 @@
 
   Game.init();
   Recorder.restore();
+  if (Upload.enabled()) $("#upNotice").hidden = false;   // show the collection notice only when uploading is on
 
   $("#go").onclick = () => {
     if (!Recorder.ready()) return;
