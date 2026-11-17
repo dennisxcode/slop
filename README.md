@@ -25,10 +25,12 @@ the new potato's name, and the bigger the potato, the slower and deeper it sound
      events younger than the **event lifetime** (2 s), then the most recent.
    - Tier 1's name plays once per round, as the intro, when the first potato
      drops into an empty flask. Drops are never voiced after that.
-   - Speed slides from 1.0× at tier 2 down to the **Top-tier voice speed**
-     slider at tier 11. New-best announcements play another 0.85× slower.
-     Timing is real time, so 2×/4× game speed doesn't shorten clips or gaps.
-   - Silence is trimmed off every clip.
+   - Speed (and pitch) stays near 1.0× for the low tiers and eases down to the
+     **Top-tier voice speed** slider (0.6×) at tier 11. Volume rises evenly
+     from 40% at tier 1 to 100% at tier 11 and the Final Form. Timing is real
+     time, so 2×/4× game speed doesn't shorten clips or gaps.
+   - Silence is trimmed off every clip and every take is levelled to the same
+     peak, so the volume growth is audible whatever the mic level.
 4. **Final Form** (two Cosmo patates touch): both freeze and drops pause. The
    screen dims for 1 s while three shockwaves pulse out. Then *Patate caca*
    grows to 1.3× the bowl's size, pushing everything outward, the bottom of
@@ -36,8 +38,13 @@ the new potato's name, and the bigger the potato, the slower and deeper it sound
    caca" plays at the slowest speed and cuts off anything else. Then the flask
    resets and drops resume. The sequence runs in real time, whatever the game
    speed.
-5. If the flask fills up to the rim, it resets with **OVERFLOW!**
-6. **⚙ panel** (in-game, applies live): gravity, bounciness, friction, air
+5. **Keeping it moving:** matching tiers pull toward each other (bigger tiers
+   harder and from further away), resting potatoes get the odd hop (bigger
+   ones more often), and big potatoes are relatively lighter, so the pile
+   never locks up. Tuning is in `CONFIG.lively`. Reaching the Final Form
+   takes 2,048 drops, about 20 minutes at 1× (5 at 4×).
+6. If the flask fills up to the rim, it resets with **OVERFLOW!**
+7. **⚙ panel** (in-game, applies live): gravity, bounciness, friction, air
    drag, potato size, drop rate, spin, merge pop, same-tier pull (matching
    potatoes drift toward each other so the pile doesn't lock up), jiggle (resting
    potatoes get the odd little hop), plus **Voice** (top-tier
@@ -83,7 +90,9 @@ Everything is in [`js/config.js`](js/config.js):
 | `tiers[].offY` | Sprite body-centre offset, in sprite pixels |
 | `sprite` | Sprite size and body radius (sets the drawn scale) |
 | `audio.introRate` / `rateStart` | Speed of the tier-1 intro / the tier-2 name |
-| `audio.recordFactor` | Extra slowdown for new-best announcements |
+| `audio.curve` | How late the voice gets deep (higher = later) |
+| `audio.gainStart` / `gainEnd` | Volume at tier 1 / tier 11 and the Final Form |
+| `lively` | Pile liveliness: weight, pull range/growth, jiggle |
 | `announcer.fadeOut` | Fade when the Final Form cuts the current clip |
 | `finalForm` | Final Form timings, size, fall speed and push |
 | `flask` | Flask shape (R = `flask.radius`; tier sizes derive from it) |

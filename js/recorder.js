@@ -42,7 +42,7 @@ window.Recorder = (() => {
           <span class="speed">${when(s)}</span>
         </div>`;
       li.querySelector(".rec").onclick = () => toggle(s.key);
-      li.querySelector(".play").onclick = () => { Sound.ac(); Sound.play(s.key, rateOf(s)); };
+      li.querySelector(".play").onclick = () => { Sound.ac(); Sound.play(s.key, rateOf(s), Sound.gainFor(s.tier)); };
       li.querySelector("input[type=file]").onchange = e => { const f = e.target.files[0]; if (f) save(s.key, f); e.target.value = ""; };
       li.querySelector(".redo").onclick = async () => { done.delete(s.key); Sound.drop(s.key); await Store.del(s.key); render(); };
       list.appendChild(li);

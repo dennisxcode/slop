@@ -13,7 +13,7 @@ window.Settings = (() => {
     { key: "pop",       label: "Merge pop",      min: 0,    max: 15,   step: 0.5,   def: 2 },
     { key: "attract",   label: "Same-tier pull", min: 0,    max: 2,    step: 0.05,  def: 1 },
     { key: "jiggle",    label: "Jiggle",         min: 0,    max: 1,    step: 0.05,  def: 0.5 },
-    { key: "slowdown",  label: "Top-tier voice speed", min: 0.2, max: 1, step: 0.01, def: 0.55, group: "Voice", voice: true },
+    { key: "slowdown",  label: "Top-tier voice speed", min: 0.4, max: 1, step: 0.01, def: 0.6, group: "Voice", voice: true },
     { key: "breath",    label: "Breath between clips (s)", min: 0.1, max: 1, step: 0.05, def: 0.25, group: "Voice", voice: true },
     { key: "eventLife", label: "Event lifetime (s)", min: 0.5, max: 4, step: 0.1, def: 2, group: "Voice", voice: true },
   ];
@@ -35,14 +35,14 @@ window.Settings = (() => {
   const listeners = [];
   const clamp = (s, v) => s.type === "bool" ? !!v : Math.min(s.max, Math.max(s.min, +(Math.round(v / s.step) * s.step).toFixed(4)));
 
-  // Saved settings from before the "Video" defaults (no version) only keep the
-  // player's voice speed; everything else starts from the new defaults.
-  const VERSION = 2;
+  // Saved settings from an older version are partly reset: v2 keeps everything
+  // but the voice speed (its curve changed); anything older starts fresh.
+  const VERSION = 3;
   try {
     const saved = JSON.parse(localStorage.getItem("physics") || "null");
     if (saved) {
       const st = saved.state || {};
-      const keep = saved.v === VERSION ? SCHEMA.map(s => s.key) : ["slowdown"];
+      const keep = saved.v === VERSION ? SCHEMA.map(s => s.key) : saved.v === 2 ? SCHEMA.map(s => s.key).filter(k => k !== "slowdown") : [];
       for (const k of keep) if (typeof st[k] === "number") state[k] = clamp(SCHEMA.find(s => s.key === k), st[k]);
       vary = !!saved.vary;
     }

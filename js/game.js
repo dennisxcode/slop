@@ -65,7 +65,7 @@ window.Game = (() => {
     const s = S(), r = radius(tier);
     const b = Bodies.circle(x, y, r, {
       restitution: s.bounce, friction: s.friction, frictionStatic: s.friction * 2, frictionAir: s.drag,
-      density: 0.001, label: "piece",
+      density: 0.001 * (radius(0) / r) ** C.lively.weight, label: "piece",
     });
     b.tier = tier; b.r = r; b.born = t; b.pop = 0;
     Composite.add(engine.world, b);
@@ -129,7 +129,9 @@ window.Game = (() => {
   //           potatoes get pushed outward.
   //   burst : the bowl's bottom arc opens, everything falls off the screen
   //           while "Patate caca" plays. Then the flask resets.
+  let finals = 0, overflows = 0;
   function startFinal(a, b, x, y) {
+    finals++;
     for (const p of [a, b]) { Body.setStatic(p, true); p.frozen = true; }
     ff = { phase: "charge", t: 0, x, y, a, b, r: a.r, angle: (a.angle + b.angle) / 2, vy: 0 };
     for (let k = 0; k < 3; k++) rings.push({ x, y, r: a.r * 0.6, life: -k * 0.3, dur: 0.9, shock: true });
@@ -181,6 +183,7 @@ window.Game = (() => {
   // ---------- overflow ----------
   let overT = 0;
   function overflow() {
+    overflows++;
     flashT = 2;
     banner("OVERFLOW!");
     setTimeout(() => banner(null), 1600);
@@ -305,32 +308,36 @@ window.Game = (() => {
     return 0.25 * Math.max(0, 1 - ff.t / 0.6);
   }
 
-  // Keeps the flask lively so the pile doesn't lock up with same-tier pairs a
-  // potato apart (the forces reset after every Engine.update):
-  //   Same-tier pull: two potatoes of the same tier within 3× their combined
-  //     radius pull toward each other, up to `attract` × gravity, fading with distance.
-  //   Jiggle: a potato that has come to rest gets an occasional small random hop.
+  // Keeps the flask lively so the pile doesn't lock up (forces reset after
+  // every Engine.update). Tuning lives in CONFIG.lively.
+  //   Same-tier pull: two potatoes of the same tier attract, up to `attract` ×
+  //     gravity. Bigger tiers pull harder and from further away, so big
+  //     duplicates find each other across the pile.
+  //   Jiggle: potatoes that have come to rest get the odd random hop; bigger
+  //     tiers hop more often, so the bottom of the pile keeps moving.
   function liven() {
     if (ff && ff.phase !== "charge") return;
-    const s = S(), g = engine.gravity.y * engine.gravity.scale;
+    const s = S(), L = C.lively, g = engine.gravity.y * engine.gravity.scale;
     const byTier = new Map();
     for (const b of pieces()) {
       if (b.frozen || b.merged) continue;
       if (!byTier.has(b.tier)) byTier.set(b.tier, []);
       byTier.get(b.tier).push(b);
-      if (s.jiggle > 0 && b.speed < 0.6 && t - b.born > 0.5 && Math.random() < 0.012) {
-        const k = s.jiggle * 2.2;
-        Body.setVelocity(b, { x: b.velocity.x + (Math.random() * 2 - 1) * k, y: b.velocity.y - Math.random() * k });
+      if (s.jiggle > 0 && b.speed < 0.8 && t - b.born > 0.5 && Math.random() < L.jiggleRate * (1 + L.jiggleGrowth * b.tier)) {
+        const k = s.jiggle * L.jiggleKick;
+        Body.setVelocity(b, { x: b.velocity.x + (Math.random() * 2 - 1) * k, y: b.velocity.y - (0.5 + Math.random()) * k });
+        Body.setAngularVelocity(b, b.angularVelocity + (Math.random() - 0.5) * 0.1 * s.jiggle);
       }
     }
     if (s.attract <= 0) return;
-    for (const group of byTier.values()) {
+    for (const [tier, group] of byTier) {
+      const boost = 1 + L.pullGrowth * tier, reach = L.pullRange + L.pullReach * tier;
       for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
         const a = group[i], b = group[j];
         const dx = b.position.x - a.position.x, dy = b.position.y - a.position.y, d = Math.hypot(dx, dy) || 1;
-        const range = (a.r + b.r) * 3;
+        const range = (a.r + b.r) * reach;
         if (d > range) continue;
-        const f = s.attract * g * (1 - d / range) * 0.5 + s.attract * g * 0.5;   // stronger when close, never zero in range
+        const f = s.attract * g * boost * (0.5 + 0.5 * (1 - d / range));   // stronger when close, never zero in range
         const fx = dx / d * f, fy = dy / d * f;
         Body.applyForce(a, a.position, { x: fx * a.mass, y: fy * a.mass });
         Body.applyForce(b, b.position, { x: -fx * b.mass, y: -fy * b.mass });
@@ -414,5 +421,8 @@ window.Game = (() => {
     get finalPhase() { return ff ? ff.phase : null; },
     toggleAuto() { auto = !auto; return auto; },
     cycleSpeed() { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; return speed; },
+    // Debug/tests: any game speed, and run stats.
+    setSpeed(n) { speed = n; },
+    get stats() { return { t: Math.round(t), best: best + 1, roundBest: roundBest + 1, finals, overflows }; },
   };
 })();

@@ -39,11 +39,11 @@ window.Announcer = (() => {
   }
 
   function play(kind, tier, when) {
-    const rate = kind === "final" ? Sound.finalRate() : kind === "record" ? Sound.recordRate(tier) : Sound.rateFor(tier);
-    const h = Sound.start(Sound.key(tier), rate, when);
+    const rate = kind === "final" ? Sound.finalRate() : Sound.rateFor(tier);
+    const h = Sound.start(Sound.key(tier), rate, when, Sound.gainFor(tier));
     if (!h) return false;
     cur = { kind, tier, h };
-    emit({ type: "start", kind, tier, rate, t: h.start, end: h.end });
+    emit({ type: "start", kind, tier, rate, gain: Sound.gainFor(tier), t: h.start, end: h.end });
     return true;
   }
 
