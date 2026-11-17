@@ -18,12 +18,17 @@
   $("#back").onclick = () => { Game.stop(); show("record"); Recorder.render(); };
   $("#reset").onclick = () => Game.reset();
   $("#auto").onclick = e => { const on = Game.toggleAuto(); e.target.textContent = "Auto-drop: " + (on ? "on" : "off"); e.target.classList.toggle("on", on); };
-  $("#shuffle").onclick = () => Recorder.shuffleUnrecorded();
 
   // ---- physics panel ----
   const sliders = $("#sliders"), presets = $("#presets");
   const fmt = (s, v) => s.step < 0.01 ? v.toFixed(3) : s.step < 1 ? v.toFixed(2) : String(v);
+  let group;
   Settings.SCHEMA.forEach(s => {
+    if (s.group && s.group !== group) {
+      group = s.group;
+      const h = document.createElement("h3"); h.className = "group"; h.textContent = s.group;
+      sliders.appendChild(h);
+    }
     const row = document.createElement("label");
     row.className = "slider";
     row.innerHTML = `<span>${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}" data-key="${s.key}"><output></output>`;

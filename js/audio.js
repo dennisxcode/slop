@@ -1,9 +1,9 @@
-// Decodes recordings and plays them slowed down by tier.
+// Decodes recordings, trims silence and knows each tier's playback speed.
+// In-game playback is decided by js/announcer.js; this file only starts clips.
 window.Sound = (() => {
   const C = window.CONFIG;
-  let ctx = null, out = null, voices = 0;
-  const buffers = {};     // key -> AudioBuffer   (keys: "t2".."t8", "final")
-  const lastAt = {};
+  let ctx = null, out = null;
+  const buffers = {};     // key -> AudioBuffer   (keys: "n1".."n12", one per tier name)
 
   function ac() {
     if (!ctx) {
@@ -38,27 +38,54 @@ window.Sound = (() => {
     return buffers[key];
   }
 
-  // Tier n = the tier something merged INTO (2..N). "final" = final form.
-  function rateFor(key) {
-    const a = C.audio, N = C.tiers.length, end = Settings.get().slowdown;
-    if (key === "final") return end * a.finalFactor;
-    const n = +key.slice(1);
-    return a.rateStart + (end - a.rateStart) * (n - 2) / Math.max(1, N - 2);
-  }
+  const key = n => "n" + n;     // n = tier number, 1-indexed
 
-  function play(key, rate = rateFor(key)) {
-    const b = buffers[key];
-    if (!b || !ctx) return;
-    const now = ctx.currentTime;
-    if (voices >= C.audio.maxVoices || (lastAt[key] && now - lastAt[key] < 0.07)) return;
-    lastAt[key] = now; voices++;
-    const src = ctx.createBufferSource();
+  // Speed for tier n's name: introRate for tier 1 (the round intro), then 1.0×
+  // at tier 2 sliding geometrically to the "Top-tier voice speed" slider at
+  // tier 11. Tier 12 (the Final Form) plays at the slider value too.
+  function rateFor(n) {
+    const a = C.audio, top = C.tiers.length - 1, end = Settings.get().slowdown;
+    if (n <= 1) return a.introRate;
+    const k = Math.min(1, (n - 2) / (top - 2));
+    return a.rateStart * (end / a.rateStart) ** k;
+  }
+  const recordRate = n => rateFor(n) * C.audio.recordFactor;
+  const finalRate = () => Settings.get().slowdown;
+
+  // Start clip k at `rate`, `when` seconds on the audio clock. Returns a handle with
+  // its real end time (duration ÷ rate) and a stop(at, fade) that fades it out.
+  function start(k, rate, when = 0) {
+    const b = buffers[k];
+    if (!b) return null;
+    ac();
+    const at = Math.max(ctx.currentTime, when);
+    const src = ctx.createBufferSource(), gain = ctx.createGain();
     src.buffer = b;
     src.playbackRate.value = rate;
-    src.connect(out);
-    src.onended = () => voices--;
-    src.start();
+    src.connect(gain); gain.connect(out);
+    src.start(at);
+    return {
+      key: k, start: at, end: at + b.duration / rate,
+      stop(t, fade) {
+        gain.gain.setValueAtTime(1, t);
+        gain.gain.linearRampToValueAtTime(0, t + fade);
+        try { src.stop(t + fade); } catch (e) {}
+        this.end = Math.min(this.end, t + fade);
+      },
+    };
   }
 
-  return { ac, load, play, rateFor, has: k => !!buffers[k], drop: k => delete buffers[k] };
+  // Record-screen preview: one at a time, cuts the previous preview.
+  let preview = null;
+  function play(k, rate) {
+    if (!ctx) return;
+    if (preview && preview.end > ctx.currentTime) preview.stop(ctx.currentTime, 0.03);
+    preview = start(k, rate);
+  }
+
+  return {
+    ac, load, key, rateFor, recordRate, finalRate, start, play,
+    now: () => (ctx ? ctx.currentTime : 0),
+    has: k => !!buffers[k], drop: k => delete buffers[k],
+  };
 })();

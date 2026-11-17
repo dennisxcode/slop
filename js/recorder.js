@@ -1,29 +1,26 @@
-// Screen 1: record every prompt before the game unlocks.
+// Screen 1: record every tier's name before the game unlocks.
 window.Recorder = (() => {
   const C = window.CONFIG;
   const $ = s => document.querySelector(s);
+  const N = C.tiers.length;
 
-  // Slots: one per tier that can be merged into, plus the final form.
-  const slots = [];
-  C.tiers.forEach((t, i) => { if (t.prompt) slots.push({ key: "t" + (i + 1), tier: i + 1, def: t.prompt, pool: C.promptPool }); });
-  slots.push({ key: "final", tier: "★", def: C.final.prompt, pool: C.finalPool });
-
-  // Player-chosen prompt text, remembered per browser.
-  let prompts = {};
-  try { prompts = JSON.parse(localStorage.getItem("prompts") || "{}"); } catch (e) {}
-  const promptOf = s => prompts[s.key] || s.def;
-  function savePrompts() { try { localStorage.setItem("prompts", JSON.stringify(prompts)); } catch (e) {} }
+  // One slot per tier: the player says that tier's name.
+  const slots = C.tiers.map((t, i) => ({ key: Sound.key(i + 1), tier: i + 1, name: t.name }));
+  // Keys from the old prompt-based version; removed on load so they don't count as recorded.
+  const LEGACY = ["final", ...Array.from({ length: 7 }, (_, i) => "t" + (i + 2))];
 
   const done = new Set();
   let stream = null, rec = null, recKey = null, chunks = [];
 
-  function reroll(slot) {
-    const used = new Set(slots.map(promptOf));
-    const options = slot.pool.filter(p => !used.has(p));
-    const list = options.length ? options : slot.pool;
-    prompts[slot.key] = list[Math.floor(Math.random() * list.length)];
-    savePrompts();
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // When and how fast each name plays in the game.
+  function when(s) {
+    if (s.tier === 1) return `round intro · ${Sound.rateFor(1).toFixed(2)}×`;
+    if (s.tier === N) return `Final Form · ${Sound.finalRate().toFixed(2)}×`;
+    return `on merge · ${Sound.rateFor(s.tier).toFixed(2)}×`;
   }
+  const rateOf = s => (s.tier === N ? Sound.finalRate() : Sound.rateFor(s.tier));
 
   function render() {
     const list = $("#words");
@@ -35,25 +32,19 @@ window.Recorder = (() => {
       li.innerHTML = `
         <div class="line">
           <span class="tier">${s.tier}</span>
-          <input class="prompt" value="" maxlength="60" aria-label="What to record" ${isDone ? "readonly" : ""}>
-          <button class="dice" title="${isDone ? "Re-record to change" : "New random prompt"}" ${isDone ? "disabled" : ""}>🎲</button>
+          <span class="name">“${esc(s.name)}”</span>
         </div>
         <div class="line controls">
-          <button class="rec" aria-label="Record">${live ? "■" : "●"}</button>
+          <button class="rec" aria-label="Record ${esc(s.name)}">${live ? "■" : "●"}</button>
           <button class="play" aria-label="Play" ${isDone ? "" : "disabled"}>▶</button>
+          <button class="redo" aria-label="Redo" title="Delete and record again" ${isDone ? "" : "disabled"}>↺</button>
           <label class="up" title="Upload a file instead">⇪<input type="file" accept="audio/*" hidden></label>
-          ${isDone ? '<button class="redo">Redo</button>' : ""}
-          <span class="speed">plays at ${Sound.rateFor(s.key).toFixed(2)}×</span>
+          <span class="speed">${when(s)}</span>
         </div>`;
-      const input = li.querySelector(".prompt");
-      input.value = promptOf(s);
-      input.onchange = () => { prompts[s.key] = input.value.trim() || s.def; savePrompts(); };
-      li.querySelector(".dice").onclick = () => { reroll(s); render(); };
       li.querySelector(".rec").onclick = () => toggle(s.key);
-      li.querySelector(".play").onclick = () => { Sound.ac(); Sound.play(s.key); };
+      li.querySelector(".play").onclick = () => { Sound.ac(); Sound.play(s.key, rateOf(s)); };
       li.querySelector("input[type=file]").onchange = e => { const f = e.target.files[0]; if (f) save(s.key, f); e.target.value = ""; };
-      const redo = li.querySelector(".redo");
-      if (redo) redo.onclick = async () => { done.delete(s.key); Sound.drop(s.key); await Store.del(s.key); render(); };
+      li.querySelector(".redo").onclick = async () => { done.delete(s.key); Sound.drop(s.key); await Store.del(s.key); render(); };
       list.appendChild(li);
     });
     $("#count").textContent = `${done.size} / ${slots.length} recorded`;
@@ -67,9 +58,9 @@ window.Recorder = (() => {
       await Store.set(key, blob);
       done.add(key);
       msg("");
-      Sound.play(key);
+      Sound.play(key, 1);
     } catch (e) {
-      msg("Couldn't read that audio — try again.");
+      msg("Couldn't read that audio. Try again.");
     }
     render();
   }
@@ -98,6 +89,8 @@ window.Recorder = (() => {
   function msg(t) { $("#msg").textContent = t; }
 
   async function restore() {
+    try { localStorage.removeItem("prompts"); } catch (e) {}
+    await Promise.all(LEGACY.map(k => Store.del(k)));
     for (const s of slots) {
       const blob = await Store.get(s.key);
       if (!blob) continue;
@@ -106,7 +99,6 @@ window.Recorder = (() => {
     render();
   }
 
-  function shuffleUnrecorded() { slots.filter(s => !done.has(s.key)).forEach(reroll); render(); }
   function releaseMic() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 
   async function reset() {
@@ -115,5 +107,5 @@ window.Recorder = (() => {
     done.clear(); render();
   }
 
-  return { render, restore, releaseMic, reset, shuffleUnrecorded, ready: () => done.size === slots.length };
+  return { render, restore, releaseMic, reset, ready: () => done.size === slots.length };
 })();

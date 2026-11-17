@@ -3,50 +3,68 @@
 //  (and in the ⚙ panel in-game).
 // ============================================================
 
-window.CONFIG = {
-  // One entry per tier, smallest → biggest.
-  //   image : sprite (PNG with transparency). Missing → numbered circle.
-  //   radius: collision radius in world units (world is 1000 wide), before the size slider.
-  //   scale : drawn image half-size ÷ radius. The bundled potatoes are 640px with
-  //           a ~190px body, so 1.68 makes the body line up with the collision circle.
-  //   prompt: default thing to record when something merges INTO this tier
-  //           (tier 1 only spawns, so it has none). Players can edit or reroll these.
-  tiers: [
-    { image: "assets/tiers/1.png", radius: 32,  scale: 1.68 },
-    { image: "assets/tiers/2.png", radius: 42,  scale: 1.68, prompt: "Make a “pop” with your mouth" },
-    { image: "assets/tiers/3.png", radius: 55,  scale: 1.68, prompt: "Say “Patate!”" },
-    { image: "assets/tiers/4.png", radius: 70,  scale: 1.68, prompt: "Beatbox one beat" },
-    { image: "assets/tiers/5.png", radius: 88,  scale: 1.68, prompt: "Say “Yeehaw!”" },
-    { image: "assets/tiers/6.png", radius: 108, scale: 1.68, prompt: "Battle cry!" },
-    { image: "assets/tiers/7.png", radius: 132, scale: 1.68, prompt: "Say “Bow before me”" },
-    { image: "assets/tiers/8.png", radius: 160, scale: 1.68, prompt: "Angelic “aaah” note" },
-  ],
+window.CONFIG = (() => {
+  // Flask shape, in world units (world = 1000 × 1600). R = bowl radius.
+  const flask = { cx: 500, cy: 1005, radius: 480, neckHalfWidth: 80, top: 80 };
+  const R = flask.radius;
 
-  final: { prompt: "Shout “FINAL FORM!”" },
+  // One entry per tier, smallest → biggest. Only tier 1 is ever dropped; two
+  // tier-N potatoes merge into tier N+1. Two tier-11s trigger the Final Form,
+  // which shows tier 12 (Patate caca) as a sprite. It's never a physics body.
+  //
+  //   name : what the player records for this tier (shown on the record screen).
+  //   short: label on the fallback circle if the sprite fails to load.
+  //   offY : how far (in sprite pixels) the potato body's centre sits BELOW the
+  //          image centre. The default sprites have it at (320,330) → 10.
+  //
+  // Art notes (every tier is a friendly, respectful character in the same style):
+  //   6 kippah · 7 kufi · 8 turban (dastar) · 9 wheelchair.
+  const tiers = [
+    { name: "Patate à la moustache", short: "Moustache", offY: 10 },
+    { name: "Bébé patate",           short: "Bébé",      offY: 10 },
+    { name: "Patate poilue",         short: "Poilue",    offY: 10 },
+    { name: "Patate mouton",         short: "Mouton",    offY: 10 },
+    { name: "Patate soldat",         short: "Soldat",    offY: 10 },
+    { name: "Patate juive",          short: "Juive",     offY: 10 },
+    { name: "Patate musulmane",      short: "Musulmane", offY: 10 },
+    { name: "Patate sikhe",          short: "Sikhe",     offY: 10 },
+    { name: "Patate en fauteuil",    short: "Fauteuil",  offY: 10 },
+    { name: "Patate chevalier",      short: "Chevalier", offY: 10 },
+    { name: "Cosmo patate",          short: "Cosmo",     offY: 10 },
+    { name: "Patate caca",           short: "Caca",      offY: 10 },
+  ];
 
-  // What the 🎲 buttons pull from. Mix of words, noises and silly stuff.
-  promptPool: [
-    "Make a “pop” with your mouth", "Say “Patate!”", "Say “Frites!”", "Say “Mashed!”",
-    "Fake a burp", "Do your best evil laugh", "Any animal noise", "Sing one high note",
-    "Whisper “bigger…”", "Scream “NOOO”", "Say your name", "Make a “boing”",
-    "Clap once", "Say “Level up!”", "Gasp dramatically", "Say “Oh no”",
-    "Mouth drumroll", "A word in another language", "Snort", "Say “Yummy”",
-    "Beatbox one beat", "Say “Bruh”", "Kiss sound", "Fake sneeze", "Say “Oui oui”",
-    "Duck quack", "Cat meow", "Say “Easy”", "Tongue click", "Say “Wow”",
-    "Robot voice: “upgrade”", "Movie-trailer voice: “potato”", "Squeak", "Say “Yeehaw!”",
-  ],
-  finalPool: [
-    "Shout “FINAL FORM!”", "Movie-trailer voice: “final form”", "Victory song (2 s)",
-    "Boss-battle roar", "Opera note", "Dramatic “IT'S OVER”",
-  ],
+  // Sizes grow geometrically: radius(n) = 0.045·R · 1.244^(n−1), tier 11 ≈ 0.40·R.
+  // (Tier 12 gets the same formula for completeness; the Final Form scales it
+  // up to finalForm.size × the bowl's diameter.)
+  tiers.forEach((t, i) => {
+    t.radius = 0.045 * R * 1.244 ** i;
+    t.image = `assets/tiers/${i + 1}.png`;
+  });
 
-  // Voice speed: tier 2 plays at rateStart. The top tier's speed is the
-  // "Top-tier voice speed" slider; the final form plays a bit slower still.
-  audio: { rateStart: 1.0, finalFactor: 0.73, maxVoices: 8 },
+  return {
+    tiers, flask,
 
-  // Which tiers can be dropped in, with relative odds.
-  spawn: { weights: [55, 30, 15] },
+    // Sprite layout: square images, potato body = circle of `body` px radius.
+    // Drawn scale = image half-width ÷ body radius = 320/195 ≈ 1.64.
+    sprite: { size: 640, body: 195 },
 
-  // Flask shape, in world units (world = 1000 × 1600).
-  flask: { cx: 500, cy: 980, radius: 470, neckHalfWidth: 80, top: 80 },
-};
+    // Voice speed: 1.0× at tier 2, sliding smoothly (geometrically) to the
+    // "Top-tier voice speed" slider at tier 11. Tier 1 (the round intro) plays
+    // at introRate. New-record announcements play recordFactor× slower still.
+    // Patate caca (the Final Form) plays at the slider value.
+    audio: { introRate: 1.0, rateStart: 1.0, recordFactor: 0.85 },
+
+    // Announcer (js/announcer.js) fixed timings, in real seconds.
+    //   fadeOut: how fast the current clip fades when the Final Form cuts it.
+    announcer: { fadeOut: 0.08 },
+
+    // Final Form sequence (real seconds; game speed doesn't affect it).
+    //   charge: dim + shockwaves before the reveal.  grow: caca scales up.
+    //   size  : caca's final diameter ÷ the bowl's diameter.
+    //   fallG / hop: scripted fall of the caca sprite (world units/s², /s).
+    //   push  : outward impulse on other potatoes while it grows.
+    //   maxBurst: safety cap on the fall phase.
+    finalForm: { charge: 1.0, grow: 0.4, size: 1.3, fallG: 330, hop: 120, push: 9, maxBurst: 7 },
+  };
+})();
