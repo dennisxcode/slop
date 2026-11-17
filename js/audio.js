@@ -40,10 +40,10 @@ window.Sound = (() => {
 
   // Tier n = the tier something merged INTO (2..N). "final" = final form.
   function rateFor(key) {
-    const a = C.audio, N = C.tiers.length;
-    if (key === "final") return a.finalRate;
+    const a = C.audio, N = C.tiers.length, end = Settings.get().slowdown;
+    if (key === "final") return end * a.finalFactor;
     const n = +key.slice(1);
-    return a.rateStart + (a.rateEnd - a.rateStart) * (n - 2) / Math.max(1, N - 2);
+    return a.rateStart + (end - a.rateStart) * (n - 2) / Math.max(1, N - 2);
   }
 
   function play(key, rate = rateFor(key)) {

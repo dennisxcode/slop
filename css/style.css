@@ -44,3 +44,30 @@ button:disabled { opacity: .35; cursor: default; }
 .hud .on { border-color: #9af; color: #cdf; }
 #banner { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: clamp(36px, 10vw, 80px); font-weight: 900; letter-spacing: 2px; opacity: 0; transition: opacity .4s; text-shadow: 0 0 24px #fd5, 0 0 48px #f80; }
 #banner.show { opacity: 1; }
+
+/* ---------- record screen: prompts ---------- */
+.word { flex-direction: column; align-items: stretch; gap: 8px; }
+.word .line { display: flex; align-items: center; gap: 8px; }
+.word .prompt { flex: 1; min-width: 0; background: transparent; border: 0; border-bottom: 1px dashed #3a3a46; color: #fff; font: 600 16px system-ui; padding: 6px 2px; }
+.word .prompt:focus { outline: none; border-bottom-color: #9af; }
+.word .prompt[readonly] { border-bottom-color: transparent; }
+.word .dice { width: 36px; height: 36px; padding: 0; background: transparent; border-color: #2a2a33; }
+.word .controls { padding-left: 36px; }
+.word .redo { font-size: 13px; padding: 8px 12px; }
+.word .speed { margin-left: auto; font-size: 12px; opacity: .5; }
+.countrow { display: flex; justify-content: space-between; align-items: center; }
+.small { font-size: 13px; padding: 7px 12px; }
+
+/* ---------- physics sheet ---------- */
+.sheet { position: absolute; left: 8px; right: 8px; bottom: 70px; max-width: 480px; margin: 0 auto; max-height: 62vh; overflow-y: auto;
+  background: rgba(16,16,22,.94); backdrop-filter: blur(8px); border: 1px solid #2c2c36; border-radius: 18px; padding: 12px 14px;
+  display: none; flex-direction: column; gap: 10px; box-shadow: 0 10px 40px #000; }
+.sheet.open { display: flex; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; padding: 6px 12px; }
+.slider { display: grid; grid-template-columns: 1fr 1.4fr 48px; align-items: center; gap: 10px; font-size: 13px; }
+.slider input { width: 100%; accent-color: #8fb3ff; }
+.slider output { text-align: right; font-variant-numeric: tabular-nums; opacity: .75; }
+.sheet-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.toggle { font-size: 13px; display: flex; gap: 6px; align-items: center; opacity: .85; }

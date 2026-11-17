@@ -12,17 +12,17 @@
   <section id="record" class="screen active">
     <header>
       <h1>Will it merge into its <span>Final Form</span>?</h1>
-      <p>First, record your voice for every merge. Bigger forms play your words slower.</p>
+      <p>Record something for every merge: words, noises, anything. Tap a prompt to change it, or 🎲 for a new one. Bigger potatoes play your sound slower.</p>
     </header>
     <div class="progress"><div id="bar"></div></div>
-    <p id="count"></p>
+    <div class="countrow"><p id="count"></p><button id="shuffle" class="ghost small">🎲 Shuffle unrecorded</button></div>
     <ol id="words"></ol>
     <p id="msg" role="status"></p>
     <div class="actions">
       <button id="wipe" class="ghost">Start over</button>
       <button id="go" disabled>Let's merge →</button>
     </div>
-    <p class="hint">● record (tap again to stop) · ▶ listen · ⇪ upload a file instead</p>
+    <p class="hint">● record (tap again to stop, max 4 s) · ▶ listen · ⇪ upload a file instead</p>
   </section>
 
   <!-- Screen 2: the game -->
@@ -34,12 +34,24 @@
       <button id="auto" class="on">Auto-drop: on</button>
       <button id="speed">1×</button>
       <button id="reset">Reset</button>
-      <button id="back">🎙 Re-record</button>
+      <button id="physBtn">⚙ Physics</button>
+      <button id="back">🎙</button>
     </nav>
+    <div id="phys" class="sheet">
+      <div class="sheet-head"><b>Physics</b><button id="physClose" class="small">✕</button></div>
+      <div id="presets" class="chips"></div>
+      <div id="sliders"></div>
+      <div class="sheet-foot">
+        <button id="rand">🎲 Randomize</button>
+        <label class="toggle"><input type="checkbox" id="vary"> New random physics every Final Form</label>
+        <button id="physReset" class="ghost small">Reset to default</button>
+      </div>
+    </div>
   </section>
 
   <script src="js/vendor/matter.min.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/settings.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/recorder.js"></script>

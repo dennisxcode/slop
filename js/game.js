@@ -35,19 +35,23 @@ window.Game = (() => {
       parts.push(Bodies.rectangle(f.cx + Math.cos(a) * r, f.cy + Math.sin(a) * r, th, len, { ...wall, angle: a }));
     }
     const joinY = f.cy - Math.sqrt(f.radius ** 2 - f.neckHalfWidth ** 2);
-    const neckH = joinY - f.top + th;
+    // Neck walls extend far above the screen so popped potatoes can't escape the flask.
+    const wallTop = f.top - 4000, neckH = joinY - wallTop + th;
     for (const s of [-1, 1])
-      parts.push(Bodies.rectangle(f.cx + s * (f.neckHalfWidth + th / 2), f.top + neckH / 2 - th / 2, th, neckH, wall));
+      parts.push(Bodies.rectangle(f.cx + s * (f.neckHalfWidth + th / 2), wallTop + neckH / 2 - th / 2, th, neckH, wall));
     Composite.add(engine.world, parts);
   }
 
+  const S = () => Settings.get();
+  let curSize = 1;
+
   function makePiece(x, y, tier) {
-    const tc = C.tiers[tier];
-    const b = Bodies.circle(x, y, tc.radius, {
-      restitution: C.physics.restitution, friction: C.physics.friction, frictionAir: 0.004,
+    const tc = C.tiers[tier], s = S();
+    const b = Bodies.circle(x, y, tc.radius * s.size, {
+      restitution: s.bounce, friction: s.friction, frictionStatic: s.friction * 2, frictionAir: s.drag,
       density: 0.001, label: "piece",
     });
-    b.tier = tier; b.born = t; b.pop = 0;
+    b.tier = tier; b.r = tc.radius * s.size; b.born = t; b.pop = 0;
     Composite.add(engine.world, b);
     if (tier > best) best = tier;
     return b;
@@ -57,11 +61,11 @@ window.Game = (() => {
     const w = C.spawn.weights, total = w.reduce((a, b) => a + b, 0);
     let r = Math.random() * total, tier = 0;
     while (r > w[tier]) { r -= w[tier]; tier++; }
-    const f = C.flask, rad = C.tiers[tier].radius, lim = f.neckHalfWidth - rad - 2;
+    const f = C.flask, rad = C.tiers[tier].radius * S().size, lim = Math.max(0, f.neckHalfWidth - rad - 2);
     let x = xScreen === undefined ? f.cx + (Math.random() - 0.5) * lim : (xScreen - ox) / scale;
     x = Math.max(f.cx - lim, Math.min(f.cx + lim, x));
     const b = makePiece(x, f.top - rad, tier);
-    Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.1);
+    Body.setAngularVelocity(b, (Math.random() - 0.5) * S().spin);
   }
 
   // ---------- merging ----------
@@ -82,11 +86,13 @@ window.Game = (() => {
       Composite.remove(engine.world, [a, b]);
       const x = (a.position.x + b.position.x) / 2, y = (a.position.y + b.position.y) / 2;
       if (a.tier === MAX) { finalForm(x, y); continue; }
-      const n = makePiece(x, y, a.tier + 1);
-      Body.setVelocity(n, { x: (a.velocity.x + b.velocity.x) / 2, y: (a.velocity.y + b.velocity.y) / 2 - 1 });
+      const f = C.flask, nr = C.tiers[a.tier + 1].radius * S().size, bowlTop = f.cy - f.radius + nr + 4;
+      const tooWide = nr > f.neckHalfWidth - 2 && y < bowlTop;
+      const n = makePiece(tooWide ? f.cx : x, tooWide ? bowlTop : y, a.tier + 1);
+      Body.setVelocity(n, { x: (a.velocity.x + b.velocity.x) / 2, y: (a.velocity.y + b.velocity.y) / 2 - S().pop });
       Body.setAngle(n, (a.angle + b.angle) / 2);
       n.pop = 1;
-      rings.push({ x, y, r: C.tiers[a.tier + 1].radius, life: 0, dur: 0.6 });
+      rings.push({ x, y, r: n.r, life: 0, dur: 0.6 });
       Sound.play("t" + (a.tier + 2));            // tiers are 1-indexed for sounds
     }
   }
@@ -98,7 +104,28 @@ window.Game = (() => {
     const banner = document.getElementById("banner");
     banner.classList.add("show");
     setTimeout(() => banner.classList.remove("show"), 2400);
-    setTimeout(clear, 2200);
+    setTimeout(() => { clear(); if (Settings.vary) Settings.randomize(); }, 2200);
+  }
+
+  let overT = 0;
+  function overflow() {
+    flashT = 2;
+    const banner = document.getElementById("banner");
+    banner.textContent = "OVERFLOW!"; banner.classList.add("show");
+    setTimeout(() => { banner.classList.remove("show"); banner.textContent = "FINAL FORM!"; }, 1600);
+    setTimeout(() => { clear(); if (Settings.vary) Settings.randomize(); }, 900);
+  }
+
+  // Push slider changes into the running world (and onto pieces already in the flask).
+  function applySettings(s) {
+    if (!engine) return;
+    engine.gravity.y = s.gravity;
+    const k = s.size / curSize; curSize = s.size;
+    for (const b of Composite.allBodies(engine.world)) {
+      if (b.label !== "piece") continue;
+      b.restitution = s.bounce; b.friction = s.friction; b.frictionStatic = s.friction * 2; b.frictionAir = s.drag;
+      if (k !== 1) { Body.scale(b, k, k); b.r *= k; }
+    }
   }
 
   function clear() {
@@ -137,7 +164,7 @@ window.Game = (() => {
   function drawPiece(b) {
     const tc = C.tiers[b.tier], im = imgs[b.tier];
     const pop = 1 + 0.25 * b.pop;                 // little squash on spawn-from-merge
-    const s = tc.radius * tc.scale * pop;
+    const s = b.r * tc.scale * pop;
     ctx.save();
     ctx.translate(b.position.x, b.position.y);
     ctx.rotate(b.angle);
@@ -147,9 +174,9 @@ window.Game = (() => {
       ctx.drawImage(im, -im.width * k / 2, -im.height * k / 2, im.width * k, im.height * k);
     } else {
       ctx.fillStyle = `hsl(${30 + b.tier * 40},75%,55%)`;
-      ctx.beginPath(); ctx.arc(0, 0, tc.radius * pop, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, b.r * pop, 0, 7); ctx.fill();
       ctx.shadowBlur = 0;
-      ctx.fillStyle = "#000a"; ctx.font = `bold ${tc.radius}px system-ui`;
+      ctx.fillStyle = "#000a"; ctx.font = `bold ${b.r}px system-ui`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.tier + 1, 0, 2);
     }
     ctx.restore();
@@ -171,7 +198,7 @@ window.Game = (() => {
     const dt = Math.min(0.033, (now - last) / 1000 || 0.016); last = now;
     for (let i = 0; i < speed; i++) {
       t += dt;
-      if (auto && flashT <= 0) { dropT -= dt; if (dropT <= 0) { spawn(); dropT = C.spawn.autoDropEvery; } }
+      if (auto && flashT <= 0) { dropT -= dt; if (dropT <= 0) { spawn(); dropT = S().dropEvery; } }
       if (flashT > 0) flashT -= dt;
       Engine.update(engine, dt * 1000);
       resolveMerges();
@@ -181,6 +208,10 @@ window.Game = (() => {
       b.pop = Math.max(0, b.pop - dt * 4 * speed);
       if (b.position.y > WH + 300) Composite.remove(engine.world, b);
     }
+    // Overflow: something has been sitting above the neck's rim for a while → reset the flask.
+    const stuck = flashT <= 0 && pieces.some(b => b.position.y < C.flask.top + b.r * 0.5 && b.speed < 1.5 && t - b.born > 1);
+    overT = stuck ? overT + dt * speed : 0;
+    if (overT > 2.5) { overT = 0; overflow(); }
 
     ctx.fillStyle = "#000"; ctx.fillRect(0, 0, innerWidth, innerHeight);
     ctx.save(); ctx.translate(ox, oy); ctx.scale(scale, scale);
@@ -201,8 +232,9 @@ window.Game = (() => {
   function init() {
     cv = document.getElementById("game"); ctx = cv.getContext("2d");
     engine = Engine.create({ positionIterations: 10, velocityIterations: 8 });
-    engine.gravity.y = C.physics.gravity;
     buildFlask();
+    curSize = S().size;
+    Settings.onChange(applySettings);
     Events.on(engine, "collisionStart", onCollide);
     Events.on(engine, "collisionActive", onCollide);   // catches pieces already resting together
     loadImages();
@@ -213,6 +245,7 @@ window.Game = (() => {
   function stop() { running = false; }
   return {
     init, start, stop,
+    pieces: () => Composite.allBodies(engine.world).filter(b => b.label === "piece"),
     reset() { clear(); best = 0; rings = []; },
     toggleAuto() { auto = !auto; return auto; },
     cycleSpeed() { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; return speed; },
